@@ -1,0 +1,26 @@
+Features
+
+>>> Graphic Features
+Waveform + STFT RGB
+
+After Effect Waveform
+
+
+
+
+>>> Editing Features
+track loading --> Drag & Drop
+
+track editing --> Click & Drag
+
+set track into Beat - subbeat - separate
+
+set track's start, end point
+
+set track's effectors
+
+>>> Preview Features
+render music & listen demo
+
+>>> Extendable Features
+Note Edit.

@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://nfors1m7uibt"]
+
+[ext_resource type="Shader" uid="uid://ckx38n87wurgd" path="res://Modules/track_module.gdshader" id="1_mi6mt"]
+[ext_resource type="Script" uid="uid://cd7pe01ldjcu5" path="res://Modules/track_module.gd" id="1_r65wy"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_h5tac"]
+shader = ExtResource("1_mi6mt")
+shader_parameter/CursorPos = Vector2(0, 0)
+shader_parameter/EditINOUT = Vector2(0, 0)
+shader_parameter/EditShow = false
+
+[node name="TrackModule" type="Panel" unique_id=260970680]
+material = SubResource("ShaderMaterial_h5tac")
+custom_minimum_size = Vector2(0, 100)
+offset_right = 40.0
+offset_bottom = 40.0
+size_flags_horizontal = 3
+script = ExtResource("1_r65wy")
+
+[connection signal="gui_input" from="." to="." method="_on_gui_input"]
