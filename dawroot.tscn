@@ -1,0 +1,27 @@
+[gd_scene format=3 uid="uid://dsek1q106mfur"]
+
+[node name="DAWROOT" type="Control" unique_id=1732775865]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="bg" type="Panel" parent="." unique_id=1981895231]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Vertical" type="VBoxContainer" parent="bg" unique_id=913361089]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
