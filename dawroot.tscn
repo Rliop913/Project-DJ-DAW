@@ -2,6 +2,17 @@
 
 [ext_resource type="PackedScene" uid="uid://nfors1m7uibt" path="res://Modules/track_module.tscn" id="1_4x03e"]
 [ext_resource type="Texture2D" uid="uid://dbxqes183l45s" path="res://icon.svg" id="1_8r6v8"]
+[ext_resource type="Script" uid="uid://c7r6fh5phh2ql" path="res://dawroot.gd" id="1_y0adw"]
+[ext_resource type="Shader" uid="uid://ckx38n87wurgd" path="res://Modules/track_module.gdshader" id="3_y0adw"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_y0adw"]
+resource_local_to_scene = true
+shader = ExtResource("3_y0adw")
+shader_parameter/CursorPos = Vector2(0, 0)
+shader_parameter/EditINOUT = Vector2(0, 0)
+shader_parameter/EditShow = false
+shader_parameter/frame_input = 0.0
+shader_parameter/max_layers = 112
 
 [node name="DAWROOT" type="Control" unique_id=1732775865]
 layout_mode = 3
@@ -12,6 +23,7 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+script = ExtResource("1_y0adw")
 
 [node name="bg" type="Panel" parent="." unique_id=1981895231]
 layout_mode = 1
@@ -72,6 +84,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 
 [node name="MasterTrack" parent="bg/Vertical/VSplitContainer" unique_id=1287651306 instance=ExtResource("1_4x03e")]
+material = SubResource("ShaderMaterial_y0adw")
 layout_mode = 2
 
 [node name="FoldableContainer" type="FoldableContainer" parent="bg/Vertical/VSplitContainer" unique_id=394864993]

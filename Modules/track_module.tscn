@@ -4,10 +4,13 @@
 [ext_resource type="Script" uid="uid://cd7pe01ldjcu5" path="res://Modules/track_module.gd" id="1_r65wy"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_h5tac"]
+resource_local_to_scene = true
 shader = ExtResource("1_mi6mt")
 shader_parameter/CursorPos = Vector2(0, 0)
 shader_parameter/EditINOUT = Vector2(0, 0)
 shader_parameter/EditShow = false
+shader_parameter/frame_input = 0
+shader_parameter/max_layers = 1
 
 [node name="TrackModule" type="Panel" unique_id=260970680]
 material = SubResource("ShaderMaterial_h5tac")
@@ -17,4 +20,5 @@ offset_bottom = 40.0
 size_flags_horizontal = 3
 script = ExtResource("1_r65wy")
 
+[connection signal="PutImg" from="." to="." method="_on_put_img"]
 [connection signal="gui_input" from="." to="." method="_on_gui_input"]
