@@ -1,0 +1,53 @@
+[gd_scene format=3 uid="uid://cpvqgn6n07r0r"]
+
+[sub_resource type="GDScript" id="GDScript_ilkte"]
+script/source = "extends VisibleOnScreenEnabler2D
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+
+func SetSize(sz:Vector2):
+	
+	rect.size.x = sz.x
+	rect.size.y = sz.y
+	rect.position.x = 0
+	rect.position.y = 0
+	$panel.mesh.size = sz
+	$Area2D/CollisionShape2D.shape.size = sz
+	pass
+
+func SetImg(img:Image):
+	var imtxt := ImageTexture.new()
+	imtxt.set_image(img)
+	$panel.texture = imtxt
+
+func _on_area_2d_input_event(viewport: Node, event: InputEvent, shape_idx: int) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			
+			$\"..\".dragging = true
+			$\"..\".drag_offset = global_position - get_global_mouse_position()
+"
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ilkte"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_ilkte"]
+
+[sub_resource type="ImageTexture" id="ImageTexture_ilkte"]
+
+[node name="Block" type="VisibleOnScreenEnabler2D" unique_id=358245830]
+script = SubResource("GDScript_ilkte")
+
+[node name="Area2D" type="Area2D" parent="." unique_id=621284692]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D" unique_id=2063021395]
+shape = SubResource("RectangleShape2D_ilkte")
+
+[node name="panel" type="MeshInstance2D" parent="." unique_id=515637831]
+mesh = SubResource("QuadMesh_ilkte")
+texture = SubResource("ImageTexture_ilkte")
+
+[connection signal="input_event" from="Area2D" to="." method="_on_area_2d_input_event"]

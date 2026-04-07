@@ -21,6 +21,8 @@ func _ready() -> void:
 		print(EditorRoot.render("temptitle"))
 		EditorRoot.pushToRootDB("tempmusic", "camellia")
 	
-	var util_api := PDJE_HighLevelUtilAPI.new()
-	var webps = util_api.SoundToWaveform(EngineRoot, "res://img_cache_db", any_music[0], 96)
+	var util_api := PDJE_MIR.new()
+	var util_cache := PDJE_KeyValueDB.new()
+	util_cache.Open("res://img_cache_db")
+	var webps = util_api.SoundToRGBWaveform(EngineRoot, util_cache, "tempmusic", "camellia", -1, 96)
 	$bg/Vertical/VSplitContainer/MasterTrack.emit_signal("PutImg", webps)

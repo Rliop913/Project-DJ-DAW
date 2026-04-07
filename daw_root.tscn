@@ -1,0 +1,69 @@
+[gd_scene format=3 uid="uid://cibvbddyblqas"]
+
+[ext_resource type="PackedScene" path="res://Modules/track_mesh_2d.tscn" id="2_track_mesh"]
+
+[sub_resource type="TileSet" id="TileSet_kwd6d"]
+tile_size = Vector2i(100, 200)
+
+[sub_resource type="GDScript" id="GDScript_kpx3i"]
+script/source = "extends TileMapLayer
+
+var EngineRoot:PDJE_Wrapper
+var EditorRoot:EditorWrapper
+var SNAP_X = 100
+var SNAP_Y = 200
+
+
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	EngineRoot = PDJE_Wrapper.new()
+	EngineRoot.InitEngine(\"res://TempRoot\")
+	var util_api := PDJE_MIR.new()
+	var util_cache := PDJE_KeyValueDB.new()
+	util_cache.Open(\"res://img_cache_db\")
+	var webps = util_api.SoundToRGBWaveform(EngineRoot, util_cache, \"tempmusic\", \"camellia\", -1, 96, 200, 256)
+	$TrackMeshes.emit_signal(\"PutImg\", webps)
+	pass # Replace with function body.
+
+
+# Called every frame. 'delta' is the elapsed time since the previous frame.
+func _process(delta: float) -> void:
+	
+	pass
+"
+
+[sub_resource type="GDScript" id="GDScript_u81q2"]
+script/source = "extends Camera2D
+@onready var ROOT = $\"../\"
+# Called when the node enters the scene tree for the first time.
+func _ready() -> void:
+	pass # Replace with function body.
+
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed(\"CAM_RIGHT\",true):
+		position.x+= ROOT.SNAP_X
+	if event.is_action_pressed(\"CAM_LEFT\",true):
+		position.x-= ROOT.SNAP_X
+	if event.is_action_pressed(\"CAM_UP\",true):
+		position.y-= ROOT.SNAP_Y
+	if event.is_action_pressed(\"CAM_DOWN\",true):
+		position.y+= ROOT.SNAP_Y
+	
+
+
+# Called every frame. 'delta' is the elapsed time since the previous- frame.
+func _process(delta: float) -> void:
+	pass
+"
+
+[node name="DAW_ROOT" type="TileMapLayer" unique_id=1349694809]
+tile_set = SubResource("TileSet_kwd6d")
+script = SubResource("GDScript_kpx3i")
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1217229494]
+anchor_mode = 0
+script = SubResource("GDScript_u81q2")
+
+[node name="Lines" type="Node2D" parent="." unique_id=437639272]
+
+[node name="TrackMeshes" parent="." unique_id=1743332311 instance=ExtResource("2_track_mesh")]

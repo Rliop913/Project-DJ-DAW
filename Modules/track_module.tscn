@@ -9,7 +9,7 @@ shader = ExtResource("1_mi6mt")
 shader_parameter/CursorPos = Vector2(0, 0)
 shader_parameter/EditINOUT = Vector2(0, 0)
 shader_parameter/EditShow = false
-shader_parameter/frame_input = 0
+shader_parameter/frame_input = 0.0
 shader_parameter/max_layers = 1
 
 [node name="TrackModule" type="Panel" unique_id=260970680]

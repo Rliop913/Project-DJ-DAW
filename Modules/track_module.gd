@@ -1,15 +1,38 @@
 extends Panel
 
-var shmat := $".".material as ShaderMaterial
-var edit_in:float
-var edit_out:float
-var shader_edit_io:Vector2
-var frame_now = 0
-var frame_max = 0
 signal PutImg(img_arr: Array)
+
+@onready var shmat: ShaderMaterial = material as ShaderMaterial
+
+var edit_in: float = 0.0
+var edit_out: float = 0.0
+var shader_edit_io := Vector2.ZERO
+var frame_now: float = 0.0
+var frame_max: float = 0.0
+
+
+func _ready() -> void:
+	_apply_empty_waveform()
 
 
 func _on_put_img(img_arr: Array) -> void:
+	var imgs := _decode_webp_images(img_arr)
+	if imgs.is_empty():
+		_apply_empty_waveform()
+		return
+	_apply_waveform_images(imgs)
+
+
+func _process(delta: float) -> void:
+	if Input.is_action_pressed("ui_right"):
+		frame_now = minf(frame_now + (delta * 4.0), frame_max)
+		shmat.set_shader_parameter("frame_input", frame_now)
+	if Input.is_action_pressed("ui_left"):
+		frame_now = maxf(frame_now - (delta * 4.0), 0.0)
+		shmat.set_shader_parameter("frame_input", frame_now)
+
+
+func _decode_webp_images(img_arr: Array) -> Array[Image]:
 	var imgs: Array[Image] = []
 	for webp in img_arr:
 		var img := Image.new()
@@ -18,32 +41,26 @@ func _on_put_img(img_arr: Array) -> void:
 			continue
 		img.convert(Image.FORMAT_RGBA8)
 		imgs.append(img)
-	print(imgs.size(), "imgsize")
-	frame_max = imgs.size()
-	var tex_arr = Texture2DArray.new()
+	return imgs
+
+
+func _apply_waveform_images(imgs: Array[Image]) -> void:
+	var tex_arr := Texture2DArray.new()
 	tex_arr.create_from_images(imgs)
+	frame_max = maxf(float(imgs.size() - 1), 0.0)
+	frame_now = clampf(frame_now, 0.0, frame_max)
 	shmat.set_shader_parameter("WaveForms", tex_arr)
-	
-	pass # Replace with function body.
-# Called when the node enters the scene tree for the first time.
-func _ready() -> void:
-	pass # Replace with function body.
+	shmat.set_shader_parameter("max_layers", max(imgs.size(), 1))
+	shmat.set_shader_parameter("frame_input", frame_now)
 
 
-# Called every frame. 'delta' is the elapsed time since the previous frame.
-func _process(delta: float) -> void:
-	if Input.is_action_pressed("ui_right"):
-		print("right")
-		frame_now += 0.01
-		if frame_now > frame_max:
-			frame_now = frame_max
-		shmat.set_shader_parameter("frame_input", frame_now)
-	if Input.is_action_pressed("ui_left"):
-		frame_now -= 0.01
-		if frame_now < 0:
-			frame_now = 0
-		shmat.set_shader_parameter("frame_input", frame_now)
-	pass
+func _apply_empty_waveform() -> void:
+	var img := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+	img.fill(Color.TRANSPARENT)
+	_apply_waveform_images([img])
+	frame_now = 0.0
+	frame_max = 0.0
+	shmat.set_shader_parameter("frame_input", 0.0)
 
 # 기능 설명.
 # 기본 디자인 - Waveform + STFT RGB

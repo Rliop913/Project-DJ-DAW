@@ -4,7 +4,7 @@ uniform vec2 EditINOUT = vec2(0,0);
 uniform bool EditShow = false;
 uniform float frame_input = 0;
 uniform int max_layers = 112;
-uniform usampler2DArray WaveForms;
+uniform sampler2DArray WaveForms;
 void vertex() {
 	
 	// Called for every vertex the material is visible on
@@ -21,9 +21,10 @@ void fragment() {
 	
 	//COLOR = vec4(0,0,0,1);
 	//float count = (sin(TIME * 1.0) + 1.0) * 56.0;
-	uvec4 v = texture(WaveForms, pos_texture(UV, 1, frame_input));
+	float layer_count = max(float(max_layers), 1.0);
+	vec4 v = texture(WaveForms, pos_texture(UV, layer_count, frame_input));
 	
-	COLOR = vec4(vec3(v.rgb) / 255.0 , 1.0);
+	COLOR = vec4(vec3(v.rgb), 1.0);
 	
 	if (EditShow &&
 	    FRAGCOORD.x >= min(EditINOUT.x, EditINOUT.y) &&

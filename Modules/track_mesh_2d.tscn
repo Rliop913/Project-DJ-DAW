@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://Modules/track_mesh_2d.gd" id="1_track_mesh"]
+[ext_resource type="Shader" path="res://Modules/track_module.gdshader" id="2_track_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_0m5dw"]
+resource_local_to_scene = true
+shader = ExtResource("2_track_shader")
+shader_parameter/CursorPos = Vector2(0, 0)
+shader_parameter/EditINOUT = Vector2(0, 0)
+shader_parameter/EditShow = false
+shader_parameter/frame_input = 0.0
+shader_parameter/max_layers = 1
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_b2mbg"]
+size = Vector2(1, 1)
+
+[node name="TrackMesh2D" type="Area2D"]
+script = ExtResource("1_track_mesh")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_b2mbg")
+
+[node name="Surface" type="Sprite2D" parent="."]
+centered = false
+material = SubResource("ShaderMaterial_0m5dw")
+
+[connection signal="PutImg" from="." to="." method="_on_put_img"]
+[connection signal="input_event" from="." to="." method="_on_input_event"]
