@@ -53,11 +53,20 @@
 - `__SETTING_VAL__UI_BACKGROUND_TASK_QUEUE_MAX_HEIGHT_PX`: `160`. `BackgroundTaskQueueContainer`의 기본 최대 높이. 넘치면 스크롤바를 표시한다. Used by [Global Frame UI](Global%20Frame%20UI.md).
 - `__SETTING_VAL__UI_BACKGROUND_TASK_QUEUE_MAX_VISIBLE_TASKS`: `4`. 스크롤 전 한 번에 보여주는 task 행 수의 기본값. Used by [Global Frame UI](Global%20Frame%20UI.md).
 
+## Automation Authoring UI Settings
+
+- `__SETTING_VAL__AUTOMATION_PARAM_SCALAR_COERCE_MODE`: `KeepFloat`. automation parameter dialog에서 입력한 scalar 값을 apply 직전에 그대로 유지할지, `floor` 처리할지 결정한다. Allowed: `KeepFloat`, `FloorToInteger`. Used by [Mixset Timeline Model](Mixset%20Timeline%20Model.md).
+
 ## Shortcut And Save Guard Settings
 
 - `__SETTING_VAL__SHORTCUT_SAVE_CURRENT_CONTEXT`: `Ctrl+S`. 현재 authoring context 저장 단축키. Used by [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md), [Godot Scene Workflow](Godot%20Scene%20Workflow.md), [Global Frame UI](Global%20Frame%20UI.md), [Authoring Local Bezel](Authoring%20Local%20Bezel.md).
 - `__SETTING_VAL__SAVE_GUARD_SHOW_DIALOG_ON_INVALID_SAVE`: `true`. 저장 불가 상태에서 저장 시도 시, 현재 서브씬 내부 문맥으로 경고 dialog를 표시할지 결정한다. Used by [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md), [Authoring Local Bezel](Authoring%20Local%20Bezel.md).
 - `__SETTING_VAL__SAVE_GUARD_SHOW_STATUS_ICON_ON_INVALID_SAVE`: `true`. 저장 불가 상태를 현재 서브씬 내부의 강한 상태 UI로 지속 표시할지 결정한다. Used by [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md).
+
+## Editor Project Registry Settings
+
+- `__SETTING_VAL__EDITOR_PROJECT_REGISTRY_DB_PATH`: `user://editor_project_registry.sqlite`. `Workspace Selection`이 editor project metadata를 고정 저장하는 canonical RMDB 파일 경로. Used by [Godot Scene Workflow](Godot%20Scene%20Workflow.md), [Godot UI Structure](Godot%20UI%20Structure.md).
+- `__SETTING_VAL__EDITOR_PROJECT_REGISTRY_TABLE_NAME`: `editor_projects`. editor project registry의 canonical table name. Used by [Godot Scene Workflow](Godot%20Scene%20Workflow.md), [Godot UI Structure](Godot%20UI%20Structure.md).
 
 ## Asset Import Settings
 
@@ -77,7 +86,7 @@
 - `__SETTING_VAL__ASSET_CONFIG_SAVE_ON_RETURN`: `true`. `ReturnAction` 시 즉시 return save를 강제할지 결정한다. Used by [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md), [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md).
 - `__SETTING_VAL__ASSET_CONFIG_AUTOSAVE_INTERVAL_SECONDS`: `30`. 최초 필수 필드 저장 이후, `Music Asset Add & Config` 서브씬 편집 중 app-local working draft autosave 간격. Used by [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md).
 - `__SETTING_VAL__ASSET_CONFIG_AUTOSAVE_SCOPE`: `AppLocalDraftOnly`. autosave가 PDJE editor mutation이 아니라 UI working draft에만 적용되는지 결정한다. Allowed: `AppLocalDraftOnly`, `FuturePDJESync`. Used by [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md), [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md).
-- `__SETTING_VAL__ASSET_READY_FOR_MIXSET_IMPLIES_ROOT_DB_VISIBILITY`: `false`. `ready_for_mixset`가 root DB searchable 상태를 뜻하는지 여부. 현재 blueprint는 project-local authoring readiness만 뜻한다. Used by [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md), [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md).
+- `__SETTING_VAL__ASSET_READY_FOR_MIXSET_IMPLIES_ROOT_DB_VISIBILITY`: `false`. `ready_for_mixset`가 root DB searchable 상태를 뜻하는지 여부. 현재 blueprint는 `render(..., lint_msg)` 성공으로 증명된 project-local authoring readiness만 뜻한다. Used by [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md), [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md).
 
 ## Asset Waveform Settings
 

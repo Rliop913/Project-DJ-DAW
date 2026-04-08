@@ -217,6 +217,7 @@ waveform 생성 실패가 곧 draft 폐기나 `PDJE` registration 실패를 의�
 - scope: `__SETTING_VAL__ASSET_CONFIG_AUTOSAVE_SCOPE`
 - 목적: 현재 working draft를 잃지 않도록 저장
 - 특징: autosave 성공이 곧 return permission을 의미하지는 않는다
+- 실패 노출: autosave failure는 현재 서브씬 내부 경고로만 처리하고 global alert queue에는 올리지 않는다
 - 성공 시 이동: `DraftEditing`
 - 실패 시 이동: `DraftEditing`
 
@@ -226,11 +227,12 @@ waveform 생성 실패가 곧 draft 폐기나 `PDJE` registration 실패를 의�
 
 - 트리거: `ReturnAction`
 - 동작: 현재 변경사항 전체를 app-local draft에 반영하고, `PDJE` editor-local state에는 수정 가능한 항목만 즉시 반영 시도
+- 후속 검증: `render(..., lint_msg)` 기반 최종 readiness 검증
 - 저장 정책: `__SETTING_VAL__ASSET_CONFIG_SAVE_ON_RETURN`
 - validation gate: `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS`
 
 이 상태는 local draft save가 아니라 **return save**다.  
-여기서 통과해야만 `ready_for_mixset = true`가 된다.
+여기서 required field gate와 render 검증을 모두 통과해야만 `ready_for_mixset = true`가 된다.
 
 ### `ExitToMixset`
 
@@ -275,8 +277,10 @@ return save가 성공하고 final required set이 유효할 때만 진입 가능
 - `PDJERegistering` 실패
 - autosave 실패
 - return save 실패
+- render/lint 검증 실패
 
-이 상태에서는 입력값을 최대한 유지하고, 사용자가 같은 상태에서 다시 저장을 시도할 수 있어야 한다.
+이 상태에서는 입력값을 메모리상으로 최대한 유지하고, 사용자가 같은 상태에서 다시 저장을 시도할 수 있어야 한다.  
+다만 이 실패 상태 자체를 app-local draft, `editor DB`, `RootDB`에 persistence하면 안 된다.
 
 ### `WaveformGenerationFailedState`
 
@@ -288,6 +292,8 @@ return save가 성공하고 final required set이 유효할 때만 진입 가능
 - asset이 아직 `PDJE` search-visible 상태가 아님
 
 이 상태는 사용자의 메타데이터 작업을 막는 것이 아니라, waveform 관련 영역만 재시도 가능 상태로 남기는 방향이 맞다.
+이 실패 상태 역시 persistence 대상이 아니라 transient UI state다.
+현재 canonical UI는 별도 retry-only 화면으로 분기하지 않고, `DraftEditing` 안의 inline failure / retry panel로 복귀하는 방식이다.
 
 ## State Transition Rules
 
@@ -337,14 +343,15 @@ return save가 성공하고 final required set이 유효할 때만 진입 가능
 
 ### Return Save Gate
 
-`Mixset Editing`으로 복귀하려면 아래 조건을 통과해야 한다.
+`Mixset Editing`으로 복귀하려면 아래 조건을 통과해 render 검증을 시도할 수 있어야 한다.
 
 - `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS` 전체 유효
-- BPM mapping row 유효
+- BPM mapping point row 유효
 - `First Beat` 유효
 - 필요한 `PDJE` registration이 이미 끝나 있음
 
-이 gate를 통과한 저장만 `ready_for_mixset = true`를 만든다.
+이 gate는 render 검증의 입력 조건이다.  
+`ready_for_mixset = true`는 이 gate를 통과한 뒤 `render(..., lint_msg)`까지 성공했을 때만 얻는다.
 
 ## Save Timing Rules
 
@@ -389,20 +396,16 @@ return save가 성공하고 final required set이 유효할 때만 진입 가능
 사용자는 추가 config 수정과 BPM mapping을 마친 뒤 복귀해야 한다.  
 waveform은 있으면 쓰되, 현재 binding 기준으로 항상 선행 조건은 아니다.
 
+현재 BPM mapping은 region change를 허용하지 않고, 항상 point row만 허용한다.
+
 따라서 `ReturnAction`은 아래와 같이 동작해야 한다.
 
 - `DraftEditing`에서만 의미 있는 복귀 시도다
 - 누락 필드가 있으면 실제 전환 없이 `InvalidReturnStatePanel`을 강화한다
 - 필수 조건과 return save가 모두 성공해야만 `Mixset Editing Workspace`로 돌아간다
-- `ready_for_mixset = true`는 project-local authoring readiness를 뜻하며, root DB searchable 상태와 자동으로 같아지지는 않는다
+- `ready_for_mixset = true`는 render success로 증명된 project-local authoring readiness를 뜻하며, root DB searchable 상태와 자동으로 같아지지는 않는다
 
-## Open Questions
-
-- `PDJE_MIR`를 조기 사용하려면 별도 staging render/push 경로를 둘지 결정이 필요하다
-- waveform 생성 실패 시 `DraftEditing`으로 바로 들어갈지, 별도 retry-only 상태를 둘지 정해야 한다
-- BPM mapping을 point row만 허용할지, region change도 허용할지 정해야 한다
-- autosave 실패를 alert queue에도 올릴지, 서브씬 내부에만 표시할지 정해야 한다
-- 태그를 장기적으로 `PDJE` 쪽 데이터 모델과 연결할지, 계속 app-layer metadata로 둘지 정해야 한다
+현재 기준으로 tag는 `asset_id`에 귀속되는 app-layer metadata로 고정한다.
 
 ## Summary
 

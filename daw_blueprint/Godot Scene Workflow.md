@@ -68,17 +68,39 @@ scene의 역할은 **사용자 작업 맥락을 분리하고, editor model을 �
 핵심 책임은 아래와 같다.
 
 - PDJE root 경로 선택
-- editor project root 확인
-- 기존 authored track 목록 표시
-- 새 track authoring 시작
+- 현재 editor project 목록 표시
+- 선택한 editor project 열기 / 수정 / 폐기
+- `RootDB` 안의 track 데이터 리스트 표시
+- `RootDB` 안의 music 데이터 리스트 표시
+- 선택한 `RootDB` track / music 삭제
+- 새 editor project authoring 시작
 - 최근 작업 또는 최근 root 접근
 
 ### 내부 subscene/view
 
 - `RootSelectionView`
-- `TrackListView`
-- `NewTrackSetupView`
+- `EditorProjectListView`
+- `RootDbTrackListView`
+- `RootDbMusicListView`
+- `NewProjectSetupView`
 - `RecentWorkspaceView`
+
+### New Editor Project Metadata Rule
+
+새 editor project 생성 시 받는 최소 입력은 아래 세 가지로 고정한다.
+
+- `projectRoot`: 필수. 새 project의 생성 위치
+- `authorName`: 선택. project 제작자 이름
+- `authorContactEmail`: 선택. project 제작자 contact email
+
+이 metadata는 개별 text file로 저장하지 않는다.
+
+- canonical persistent location은 `__SETTING_VAL__EDITOR_PROJECT_REGISTRY_DB_PATH`
+- canonical backend는 `PDJE_RelationalDB` 기반 RMDB
+- canonical table은 `__SETTING_VAL__EDITOR_PROJECT_REGISTRY_TABLE_NAME`
+- `projectRoot`는 registry의 기본 식별 키 역할을 한다
+- `Workspace Selection`은 이 registry를 통해 editor project를 저장, 접근, 삭제한다
+- `editorDB`는 여전히 user-facing registry가 아니라 내부 임시 저장소다
 
 ### 포함하지 않아야 하는 것
 
@@ -91,6 +113,19 @@ scene의 역할은 **사용자 작업 맥락을 분리하고, editor model을 �
 
 이 scene은 `Selector Local Bezel`을 가진다.
 기본 액션 버튼 수 상한은 `__SETTING_VAL__UI_LOCAL_BEZEL_ACTION_LIMIT_SELECTOR`를 따른다.
+
+### Data Visibility Rule
+
+`Workspace Selection Scene`의 user-facing visibility는 아래처럼 고정한다.
+
+- `RootDB` 안의 track 데이터는 사용자에게 리스트로 보여준다
+- `RootDB` 안의 music 데이터도 사용자에게 리스트로 보여준다
+- 현재 authoring 중인 editor project도 사용자에게 리스트로 보여준다
+- 사용자는 editor project를 열고, 수정하고, 폐기할 수 있어야 한다
+- 사용자는 `RootDB` track / music 항목을 삭제할 수 있어야 한다
+- `editorDB` 자체는 내부 구현용 임시 저장소로만 취급하며, 사용자에게 별도 browser나 list로 노출하지 않는다
+
+즉, 사용자에게 보이는 것은 `RootDB` data와 editor project entry이고, `editorDB` raw content는 보이지 않는다.
 
 ## Scene 2: Authoring Scene
 
@@ -120,6 +155,16 @@ scene의 역할은 **사용자 작업 맥락을 분리하고, editor model을 �
 2. `Music Asset Add & Config Workspace`
 
 이 둘은 같은 상위 authoring 세션 안에 있지만, 작업 집중도와 연산 특성이 다르므로 **실제 화면 전환이 가능한 별도 subscene**으로 취급한다.
+
+### Workspace Hosting Rule
+
+현재 canonical 구조는 `AuthoringScene` 내부의 child workspace 교체 방식이다.
+
+- `Mixset Editing Workspace`와 `Music Asset Add & Config Workspace`는 둘 다 `AuthoringScene`의 자식 작업공간으로 둔다
+- 상위 shell, current editor session, preview transport, dialog host는 `AuthoringScene`에 유지한다
+- workspace 전환은 top-level main scene 재생성이 아니라 `AuthoringScene` 내부 router가 child workspace를 교체하는 방식으로 처리한다
+
+즉, `Music Asset Add & Config`는 독립된 메인 scene이 아니라 `AuthoringScene` 아래의 dedicated child workspace다.
 
 ## Authoring Subscene A: Mixset Editing Workspace
 
@@ -179,7 +224,8 @@ scene의 역할은 **사용자 작업 맥락을 분리하고, editor model을 �
 - 파형, BPM, firstBeat, 태그 포인트 같은 단일 자산용 UI가 필요하다
 - 성능상 timeline editor 전체를 유지한 채 같은 화면에서 처리하면 부담이 커질 수 있다
 
-즉, 이 작업은 `Mixset Editing`의 부가 다이얼로그가 아니라 **독립 작업공간**으로 보는 것이 맞다.
+즉, 이 작업은 `Mixset Editing`의 부가 다이얼로그가 아니라 **독립 작업공간**으로 보는 것이 맞다.  
+다만 hosting 방식은 top-level main scene 분리가 아니라 `AuthoringScene` 내부 child workspace 교체를 canonical path로 본다.
 
 ### 핵심 책임
 
@@ -236,13 +282,32 @@ scene의 역할은 **사용자 작업 맥락을 분리하고, editor model을 �
 이 피드백은 `Authoring Local Bezel`이 아니라 `Music Asset Add & Config` 서브씬 내부에서 강하게 표현되어야 한다.
 초기 source import, app-local initial save, `PDJE` registration, 조건부 waveform build, autosave, return save의 state sequence는 [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md)를 따른다.
 
+### Waveform / STFT Job Boundary
+
+`Music Asset Add & Config Workspace`의 waveform / STFT 작업은 UI thread와 분리한다.
+
+- `PDJE_MIR` 호출, decode, buffer normalization 같은 무거운 작업은 background job controller에서 수행한다
+- 진행 상태는 global background task queue와 workspace 내부 progress view에 동시에 반영할 수 있다
+- Godot node tree 갱신과 texture / image bind는 main thread에서만 수행한다
+- 따라서 background job은 raw result나 decoded image array를 main thread에 전달하고, 최종 view binding은 workspace view가 맡는다
+
+즉, 계산은 background job, scene graph mutation은 main thread로 고정한다.
+
+### Waveform / STFT Result Ownership
+
+waveform / STFT 결과는 display/analysis aid이지 editor model의 semantic source of truth가 아니다.
+
+- 결과 buffer나 image array 자체를 즉시 authoritative editor model state로 승격하지 않는다
+- 사용자가 실제로 확정한 `First Beat`, BPM row, tag data만 mutation 대상으로 본다
+- waveform / STFT는 그 확정을 돕는 reference visualization으로만 다룬다
+
 ## Canonical Scene Flow
 
 이 프로젝트의 대표 화면 흐름은 아래와 같다.
 
 1. 사용자가 `Workspace Selection Scene`에 진입한다
 2. PDJE root를 선택한다
-3. 기존 track을 열거나 새 track authoring을 시작한다
+3. 기존 editor project를 열거나 새 editor project authoring을 시작한다
 4. `Authoring Scene`의 `Mixset Editing Workspace`로 진입한다
 5. 사용자는 기존 music asset을 불러오거나 새 음악 자산 추가를 선택한다
 6. 새 자산이 필요하면 `Music Asset Add & Config Workspace`로 화면 전환한다
@@ -338,14 +403,6 @@ scene의 역할은 **사용자 작업 맥락을 분리하고, editor model을 �
 - asset registry access
 
 이렇게 하면 두 authoring subscene이 같은 세션 상태를 공유하면서도 화면 책임은 분리할 수 있다.
-
-## Open Questions
-
-- `Music Asset Add & Config`에서 태그 포인트의 정확한 의미를 어떻게 표준화할지 결정이 필요하다
-- waveform/STFT 결과를 즉시 editor model에 반영할지, 임시 검토 후 commit할지 결정이 필요하다
-- `Workspace Selection`에서 새 track 생성 시 필요한 최소 입력값을 어디까지 받을지 정해야 한다
-- `Music Asset Add & Config`를 완전한 scene 파일로 분리할지, `AuthoringScene` 내부 child scene 교체 방식으로 운영할지 정해야 한다
-- background waveform/STFT job과 UI thread의 경계를 어떻게 둘지 정해야 한다
 
 ## Summary
 

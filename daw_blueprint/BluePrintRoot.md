@@ -18,10 +18,18 @@
 - [Godot Scene Workflow](Godot%20Scene%20Workflow.md)
 - [Global Frame UI](Global%20Frame%20UI.md)
 - [Authoring Local Bezel](Authoring%20Local%20Bezel.md)
+- [Visual Theme And Graphic Style](Visual%20Theme%20And%20Graphic%20Style.md)
+- [UI Asset Source Policy](UI%20Asset%20Source%20Policy.md)
 - [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md)
 - [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md)
 - [Mixset Timeline Model](Mixset%20Timeline%20Model.md)
+- [Automation Lane Model](Automation%20Lane%20Model.md)
+- [Preview Playback Design](Preview%20Playback%20Design.md)
+- [Editor Integration Boundary](Editor%20Integration%20Boundary.md)
 - [Project DJ Godot Binded Out](Project%20DJ%20Godot%20Binded%20Out.md)
+- [Godot UI Structure](Godot%20UI%20Structure.md)
+- [Functional Requirements](Functional%20Requirements.md)
+- [Non-Functional Requirements](Non-Functional%20Requirements.md)
 - [Settings](Settings.md)
 - [Todo List](todo-list.md)
 
@@ -87,6 +95,7 @@ Project DJ DAW는 아래 성격을 가진다.
 핵심 개념은 아래와 같다.
 
 - 음악 자산을 라이브러리로 등록한다
+- 아직 editor DB 또는 RootDB에 메타데이터와 함께 등록되지 않은 로컬 음악 파일은 직접 참조하지 않는다
 - 믹스셋 안에서 곡이 어느 시점에 로드되고 재생되는지 정의한다
 - 특정 시점 또는 구간에 EQ, Filter, Volume, BPM, FX 등의 변화를 배치한다
 - Cue, Pause, Load, Unload 같은 DJ 동작을 timeline event로 표현한다
@@ -99,7 +108,7 @@ Project DJ DAW는 아래 성격을 가진다.
 - 믹스셋 단위의 프로젝트를 만들고 편집할 수 있어야 한다
 - 곡의 배치와 로드/언로드 시점을 시간축에서 정의할 수 있어야 한다
 - EQ, Filter, Volume, BPM, FX를 시간축 자동화로 편집할 수 있어야 한다
-- Cue, Pause, Loop 성격의 DJ 조작을 이벤트 형태로 다룰 수 있어야 한다
+- Cue, Pause, CUE 기반 loop-like GUI 편의 기능을 이벤트 authoring 위에서 다룰 수 있어야 한다
 - 작성된 믹스셋을 preview playback으로 확인할 수 있어야 한다
 - 프로젝트 상태와 편집 결과를 저장/복원할 수 있어야 한다
 - PDJE 개념을 비개발자도 다룰 수 있을 정도의 GUI로 정리해야 한다
@@ -210,22 +219,24 @@ MVP에서 중요한 것은 기능 수가 아니라, **PDJE의 mixset authoring �
 - Product Goals
 - User Personas
 - [Core Authoring Workflow](Core%20Authoring%20Workflow.md)
-- Functional Requirements
-- Non-Functional Requirements
+- [Functional Requirements](Functional%20Requirements.md)
+- [Non-Functional Requirements](Non-Functional%20Requirements.md)
 - Library and Metadata Model
 - [Music Asset Add & Config Workflow](Music%20Asset%20Add%20%26%20Config%20Workflow.md)
 - [Music Asset Add & Config UI State Flow](Music%20Asset%20Add%20%26%20Config%20UI%20State%20Flow.md)
 - [Project DJ Godot Binded Out](Project%20DJ%20Godot%20Binded%20Out.md)
 - [Mixset Timeline Model](Mixset%20Timeline%20Model.md)
-- Automation Lane Model
-- Preview Playback Design
+- [Automation Lane Model](Automation%20Lane%20Model.md)
+- [Preview Playback Design](Preview%20Playback%20Design.md)
 - [Godot Scene Workflow](Godot%20Scene%20Workflow.md)
 - [Global Frame UI](Global%20Frame%20UI.md)
 - [Authoring Local Bezel](Authoring%20Local%20Bezel.md)
+- [Visual Theme And Graphic Style](Visual%20Theme%20And%20Graphic%20Style.md)
+- [UI Asset Source Policy](UI%20Asset%20Source%20Policy.md)
 - [Settings](Settings.md)
 - [Todo List](todo-list.md)
 - Godot UI Structure
-- Persistence and Translation Layer
+- [Editor Integration Boundary](Editor%20Integration%20Boundary.md)
 - Milestone Plan
 
 ## Blueprint Writing Principles

@@ -1,0 +1,132 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://Scripts/Views/workspace_selection_view.gd" id="1_ws_view"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_card"]
+bg_color = Color(0.10, 0.10, 0.13, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.22, 0.26, 1)
+
+[node name="WorkspaceSelectionView" type="VBoxContainer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+script = ExtResource("1_ws_view")
+
+[node name="Header" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Header"]
+layout_mode = 2
+text = "Workspace Selection"
+
+[node name="BootStatusLabel" type="Label" parent="Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "PDJE service booting"
+
+[node name="CommandRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NewTrackLineEdit" type="LineEdit" parent="CommandRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Track title"
+
+[node name="CreateButton" type="Button" parent="CommandRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Create"
+
+[node name="OpenButton" type="Button" parent="CommandRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Open"
+
+[node name="RefreshButton" type="Button" parent="CommandRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Refresh"
+
+[node name="SummaryRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="RootSummaryBox" type="PanelContainer" parent="SummaryRow"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="SummaryRow/RootSummaryBox"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Label" type="Label" parent="SummaryRow/RootSummaryBox/VBoxContainer"]
+layout_mode = 2
+text = "Root Summary"
+
+[node name="RootSummaryLabel" type="Label" parent="SummaryRow/RootSummaryBox/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "res://TempRoot"
+
+[node name="ListsRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="TrackListPanel" type="PanelContainer" parent="ListsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="TrackListVBox" type="VBoxContainer" parent="ListsRow/TrackListPanel"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 6
+
+[node name="Label" type="Label" parent="ListsRow/TrackListPanel/TrackListVBox"]
+layout_mode = 2
+text = "Authored Tracks"
+
+[node name="TrackListContainer" type="VBoxContainer" parent="ListsRow/TrackListPanel/TrackListVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="RecentPanel" type="PanelContainer" parent="ListsRow"]
+layout_mode = 2
+size_flags_horizontal = 1
+custom_minimum_size = Vector2(320, 0)
+theme_override_styles/panel = SubResource("StyleBoxFlat_card")
+
+[node name="RecentVBox" type="VBoxContainer" parent="ListsRow/RecentPanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Label" type="Label" parent="ListsRow/RecentPanel/RecentVBox"]
+layout_mode = 2
+text = "Recent Tracks"
+
+[node name="RecentListContainer" type="VBoxContainer" parent="ListsRow/RecentPanel/RecentVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 4

@@ -191,8 +191,10 @@ background task indicator는 `Global Top Bezel`에 위치해야 한다.
 
 - root 변경 액션
 - root 새로고침
-- 새 track 생성
-- 선택한 track 열기
+- 새 editor project 생성
+- 선택한 editor project 열기
+- 선택한 editor project 폐기
+- 선택한 `RootDB` entry 삭제
 - 최근 작업 보기
 
 이 local bezel에는 `Save` 아이콘을 두지 않는다.
@@ -206,6 +208,7 @@ background task indicator는 `Global Top Bezel`에 위치해야 한다.
 
 - `ReturnAction`
 - `SaveIcon`
+- `RootPinAction`
 - current authoring target label
 - current subscene label
 - `SaveStateIndicator`
@@ -509,30 +512,33 @@ dialog는 scene 밖의 별도 세계가 아니라, **현재 scene 맥락을 유�
 
 - `ReturnAction`
 - `SaveIcon`
+- `RootPinAction`
 - current authoring target label
 - current subscene label
 - `SaveStateIndicator`
 
-단, `Save`는 글로벌 프레임에 올리지 않고 local bezel에 둔다.
+단, `Save`와 `RootPinAction`은 글로벌 프레임에 올리지 않고 local bezel에 둔다.
 
 ## Integration With Invalid Save UX
 
 `Music Asset Add & Config Workflow`에서 정의한 저장 차단 UX는 기본적으로 해당 서브씬 내부에서 처리한다.
 
 - `SaveIcon` 자체의 소속은 `Authoring Local Bezel`이다
+- `RootPinAction`도 `Authoring Local Bezel`에 속한다
 - 하지만 저장 차단 사유와 상세 경고는 `Music Asset Add & Config` 서브씬 내부 UI가 설명한다
 - 글로벌 프레임은 그 차단 사유를 기본적으로 중복 표시하지 않는다
+- render 실패 시 `lint_msg`는 global alert / validation feedback으로 노출할 수 있다
 
-즉, 저장 액션은 local bezel에 두되, 저장 차단의 강한 피드백은 subscene 내부에 둔다.
+즉, 저장/루트 고정 액션은 local bezel에 두되, 저장 차단 또는 render failure의 피드백은 global alert 또는 subscene 내부 UI로 연결한다.
 
-## Open Questions
+## Alert Click Routing Rule
 
-이 문서에서 설정으로 위임되는 가변 값은 모두 [Settings](Settings.md)로 이동했다.
+alert click routing은 아래처럼 고정한다.
 
-현재 남은 미해결 항목은 아래 정도다.
+- 연결 가능한 target이 하나로 명확하면 그 target으로 바로 이동한다
+- 연결 가능한 target이 둘 이상이면 target selector dialog를 먼저 띄운다
 
-- alert click이 항상 단일 target로 이동할지, 경우에 따라 target selector dialog를 먼저 띄울지
-- `Alert / Warning / Error`와 `Validation`을 완전히 분리된 영역으로 둘지, 시각적으로 한 군으로 묶을지
+`Alert / Warning / Error / Validation`의 visual grouping은 [Visual Theme And Graphic Style](Visual%20Theme%20And%20Graphic%20Style.md) 기준으로 single status cluster로 고정했다.
 
 ## Summary
 

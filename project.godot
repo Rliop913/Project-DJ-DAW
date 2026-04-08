@@ -13,6 +13,7 @@ config_version=5
 config/name="Project-DJ-DAW"
 config/features=PackedStringArray("4.6", "Forward Plus")
 config/icon="res://icon.svg"
+run/main_scene="res://Scenes/App/app_root.tscn"
 
 [display]
 

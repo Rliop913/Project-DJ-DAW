@@ -11,6 +11,12 @@
 
 이 workflow는 단순 파일 등록이 아니라, **믹스 authoring에 사용할 수 있는 신뢰 가능한 music asset을 만드는 절차**다.
 
+이 문서의 기본 전제는 아래와 같다.
+
+- mix editor가 참조할 수 있는 음악 데이터는 `editor DB` 또는 `RootDB`에 메타데이터와 함께 등록된 음악 자산뿐이다
+- 사용자의 컴퓨터 다른 경로에 있는 미등록 로컬 파일은 아직 authoring 대상이 아니다
+- 그런 파일은 반드시 `Music Asset Add & Config` 절차를 거쳐 등록 가능한 asset으로 바뀌어야만 이후 mix authoring에서 참조할 수 있다
+
 ## Relationship To Other Documents
 
 이 문서는 아래 문서들과 직접 연결된다.
@@ -59,6 +65,7 @@
 이 workflow는 아래 규칙을 강하게 따른다.
 
 - 음악 파일은 반드시 사용자의 로컬 컴퓨터에서 가져와야 한다
+- 아직 `editor DB` 또는 `RootDB`에 등록되지 않은 로컬 파일은 mix editor에서 직접 참조할 수 없다
 - 파일 유입 수단은 `__SETTING_VAL__ASSET_IMPORT_ALLOW_DRAG_AND_DROP`와 `__SETTING_VAL__ASSET_IMPORT_ALLOW_NATIVE_FILE_PICKER`가 허용한 경로만 사용한다
 - 제목, BPM, 작곡가 등 모든 핵심 메타데이터는 Config 단계에서 사용자가 직접 입력해야 한다
 - 필수 필드에는 `__SETTING_VAL__ASSET_CONFIG_ALLOW_FIELD_DEFAULTS = false` 규칙을 적용한다
@@ -68,10 +75,16 @@
 - 실제 `PDJE` registration은 `__SETTING_VAL__ASSET_CONFIG_PDJE_REGISTRATION_REQUIRED_FIELDS`를 충족해야 한다
 - return save는 `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS`를 충족해야 한다
 - `EditorWrapper.ConfigNewMusic(NewMusicName, composer, musicPath, firstBar)`는 `firstBar`를 요구하므로, 현재 blueprint는 `__SETTING_VAL__ASSET_CONFIG_ALLOW_PDJE_FIRSTBAR_DEFAULT = false` 정책을 따른다
+- music asset이 실제로 참조 가능한지 판단하는 절차는 별도 app-layer reference rule이 아니라 `PDJE` core가 경로를 받아 내부적으로 처리하는 단계로 본다
+- 앱은 candidate file의 `musicPath`를 `PDJE`에 전달하고, `PDJE`가 이를 수용하지 못하면 해당 candidate는 asset rejection 절차로 넘어가야 한다
+- `ready_for_mixset`는 필드가 채워졌다는 사실만으로 정하지 않고, 해당 편집 상태에 대해 `render(..., lint_msg)`가 성공할 때만 `true`가 된다
+- render 실패 시 asset은 `ready_for_mixset = false`로 유지되고, `lint_msg`를 사용자에게 보여준 채 계속 수정 가능해야 한다
 - 현재 `PDJE_MIR.SoundToWaveform` 계열은 raw file path를 받지 않고 `SearchMusic(title, composer, bpm)` 가능한 대상을 요구하므로, `PDJE` waveform은 asset이 `PDJE` search-visible 상태가 된 뒤에만 호출할 수 있다
 - `autosave`는 현재 `PDJE` binding이 직접 제공하는 save API가 아니라, `__SETTING_VAL__ASSET_CONFIG_AUTOSAVE_SCOPE`가 정의하는 app-local working draft 보호 기능으로 본다
 
 즉, `Add`는 파일을 데려오는 절차이고, `Config`는 그 파일을 authoring asset으로 확정하는 절차다.
+
+여기서 중요한 점은, 로컬 파일은 `Add` 시점에는 아직 단순 source file일 뿐이고, `Config + registration`을 마쳐야만 mixset이 참조 가능한 music asset이 된다는 것이다.
 
 ## PDJE Capability Boundary
 
@@ -99,6 +112,17 @@
 현재 binding 문서 기준으로 `PDJE_MIR.SoundToWaveform(...)`는 imported file의 raw path를 직접 받지 않는다.  
 내부적으로 `PDJE_Wrapper.SearchMusic(title, composer, bpm)`를 먼저 수행하므로, **새 파일을 막 가져온 직후의 app-local draft만으로는 PDJE waveform 호출이 보장되지 않는다**.
 
+## Asset Reference Acceptance Rule
+
+이 프로젝트에서 "이 음악이 mix editor에서 사용 가능한 asset인가"를 최종 판단하는 절차는 별도 app-layer reference schema가 아니라 `PDJE` core integration 단계다.
+
+- 앱은 candidate source file의 경로를 `PDJE`에 전달한다
+- `PDJE`는 내부적으로 해당 경로를 기반으로 decode / registration 가능성을 판단한다
+- 이 단계가 실패하면 candidate는 `asset rejection`으로 간주한다
+- rejection된 candidate는 mix editor 참조 대상이 되지 못하고, 사용자는 Config 화면에 남아 수정 또는 재선택을 해야 한다
+
+즉, app-layer의 책임은 경로를 수집하고 rejection UX를 제공하는 것이고, 참조 가능성 자체의 authoritative 판정은 `PDJE` core가 맡는다.
+
 ## Entry Conditions
 
 이 workflow가 시작되기 위한 최소 조건은 아래와 같다.
@@ -119,8 +143,8 @@
 - asset identifier가 생성 또는 갱신되었다
 - 저장 직후 mix editor에서 해당 asset을 **project-local authoring 대상**으로 사용할 수 있다
 
-`ready_for_mixset`는 현재 문서에서 `__SETTING_VAL__ASSET_READY_FOR_MIXSET_IMPLIES_ROOT_DB_VISIBILITY = false`를 따른다.  
-즉, 이 상태는 root DB searchable 상태와 동의어가 아니다.
+`ready_for_mixset`는 현재 문서에서 `render(..., lint_msg)` 성공으로 증명되는 project-local authoring readiness를 뜻한다.  
+또한 `__SETTING_VAL__ASSET_READY_FOR_MIXSET_IMPLIES_ROOT_DB_VISIBILITY = false`를 따르므로, 이 상태는 root DB searchable 상태와 동의어가 아니다.
 
 ## Workflow Split
 
@@ -285,6 +309,20 @@ Config 단계는 **수동 입력 중심**으로 설계한다.
 
 이 규칙은 `__SETTING_VAL__ASSET_CONFIG_REQUIRE_EXPLICIT_INITIAL_BPM_ROW`를 따른다.
 
+`BPM Transition Metadata`의 canonical row schema는 아래처럼 고정한다.
+
+- `bpm @0 : Text`
+- `beat @1 : Int64`
+- `subBeat @2 : Int64`
+- `separate @3 : Int64`
+
+해석 규칙은 아래와 같다.
+
+- `bpm`은 문자열로 직렬화된 BPM 값이다
+- 시간 위치는 `beat / subBeat / separate`의 point row로만 기록한다
+- region change row는 허용하지 않는다
+- row 순서는 시간축 오름차순이어야 한다
+
 추가 BPM row가 있다면 아래를 만족해야 한다.
 
 - 시간축 순서가 올바르다
@@ -340,7 +378,7 @@ Config 단계에서는 사용자가 곡 내부에 태그나 포인트를 넣을 
 - `PDJE` waveform이 아직 불가능한 상태여도 metadata 입력, `First Beat` 입력, BPM row 입력, tag 입력은 계속 가능해야 한다
 
 즉, 현재 binding-only 기준에서 `PDJE` waveform은 **deferred / conditional capability**다.  
-즉시 waveform이 필요하면, 별도의 staging render/push 경로를 설계하거나, `PDJE_MIR` 외 다른 pre-registration path를 추가로 설계해야 한다.
+이 blueprint는 별도 staging render/push를 두지 않고, searchable 이후 조건부 호출만 canonical path로 본다.
 
 ## Canonical Config Flow
 
@@ -353,7 +391,7 @@ Config 단계에서는 사용자가 곡 내부에 태그나 포인트를 넣을 
 7. 사용자는 `First Beat`를 직접 입력한다
 8. `__SETTING_VAL__ASSET_CONFIG_PDJE_REGISTRATION_REQUIRED_FIELDS`가 충족되면 시스템은 `EditorWrapper.ConfigNewMusic(title, composer, musicPath, firstBeat)`를 호출한다
 9. 시스템은 `PDJE_EDITOR_ARG.InitMusicArg(...)` + `EditorWrapper.AddLine(...)`로 첫 BPM row를 만든다
-10. 사용자는 추가 `BPM Transition Metadata` row를 직접 입력하고, 시스템은 이를 같은 `MusicArg` 계열 mutation으로 반영한다
+10. 사용자는 추가 `BPM Transition Metadata` point row를 직접 입력하고, 시스템은 이를 같은 `MusicArg` 계열 mutation으로 반영한다
 11. 필요 시 태그와 추가 메타데이터를 입력한다
 12. 초기 local draft save 이후 편집 중 dirty 상태가 유지되면 `__SETTING_VAL__ASSET_CONFIG_AUTOSAVE_INTERVAL_SECONDS` 간격으로 app-local autosave를 수행한다
 13. asset이 `PDJE_Wrapper.SearchMusic(title, composer, bpm)`로 검색 가능한 시점이 되면, 그 이후에만 조건부로 `PDJE` waveform generation을 호출한다
@@ -361,7 +399,9 @@ Config 단계에서는 사용자가 곡 내부에 태그나 포인트를 넣을 
 15. return 불가 상태라면 subscene 내부에 강한 `저장 불가 상태 UI`를 표시한다
 16. 사용자가 `__SETTING_VAL__SHORTCUT_SAVE_CURRENT_CONTEXT` 또는 `Authoring Local Bezel`의 `SaveIcon`을 시도하면 시스템은 현재 상태에 맞는 save/apply를 수행하거나 가드 dialog를 띄운다
 17. 사용자가 `ReturnAction`을 시도하면 즉시 return save를 수행한다
-18. `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS`를 모두 통과했고 필요한 `PDJE` editor registration이 완료된 경우에만 `ready_for_mixset = true`로 저장되고 `Mixset Editing Workspace`로 복귀한다
+18. `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS`를 모두 통과하고 필요한 `PDJE` editor registration이 완료되면 시스템은 `render(..., lint_msg)` 기반 최종 검증을 시도한다
+19. render가 성공한 경우에만 `ready_for_mixset = true`로 저장되고 `Mixset Editing Workspace`로 복귀한다
+20. render가 실패하면 `ready_for_mixset = false`를 유지하고, `lint_msg`를 사용자에게 고지한 채 Config 화면에서 계속 수정하게 한다
 
 ## Validation Rules
 
@@ -385,7 +425,7 @@ Config 단계에서는 사용자가 곡 내부에 태그나 포인트를 넣을 
 
 ### Return Save Validation
 
-`Mixset Editing`으로 복귀하는 return save는 아래 조건을 모두 통과할 때만 가능하다.
+`Mixset Editing`으로 복귀하는 return save는 아래 조건을 모두 통과해 render 검증을 시도할 수 있어야 한다.
 
 - source file path가 유효하다
 - `Track Title`이 비어 있지 않다
@@ -403,7 +443,10 @@ Config 단계에서는 사용자가 곡 내부에 태그나 포인트를 넣을 
 - 중복되거나 충돌하는 BPM transition row
 - source file 접근 불가
 
-즉, 이 workflow는 `저장 불가능 상태를 먼저 명확히 보여주고, 저장 시도 시 원인을 경고창으로 설명하는 방식`을 우선한다.
+위 조건은 render 검증의 입력 조건이다.  
+실제 `ready_for_mixset = true`는 이 입력 조건을 만족한 뒤 `render(..., lint_msg)`까지 성공했을 때만 얻는다.
+
+즉, 이 workflow는 `저장 불가능 상태를 먼저 명확히 보여주고, 저장 시도 시 원인을 경고창 또는 lint feedback으로 설명하는 방식`을 우선한다.
 
 현재 binding 기준으로 `PDJE_MIR` waveform 호출 가능 여부는 위 validation과 별도다.  
 return-ready 상태가 곧 `PDJE` waveform 사용 가능 상태를 뜻하지는 않는다.
@@ -416,6 +459,7 @@ Config 단계에서 저장이 불가능한 상태라면, 시스템은 아래 피
 - 이 UI는 현재 asset이 아직 저장 가능한 상태가 아님을 한눈에 알 수 있게 해야 한다
 - 이 UI는 최소한 "필수 필드 미완성" 또는 동등한 상태 메시지를 포함해야 한다
 - 누락 필드와 잘못된 필드를 subscene 내부 문맥에서 더 강하게 드러낼 수 있어야 한다
+- render가 실패했다면 `lint_msg`를 user-facing validation feedback으로 함께 노출해야 한다
 
 사용자가 아래 행동을 하면, 시스템은 현재 state에 맞지 않는 저장을 수행하지 않고 경고창을 띄워야 한다.
 
@@ -467,7 +511,7 @@ Config 단계에서 저장이 불가능한 상태라면, 시스템은 아래 피
 - `__SETTING_VAL__ASSET_CONFIG_SAVE_ON_RETURN`를 따른다
 - 현재 폼 상태 전체를 app-local draft에 반영한다
 - `PDJE` editor-local state에는 현재 wrapper가 실제로 수정 가능한 항목인 `First Beat`와 BPM row만 반영한다
-- `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS`를 모두 통과해야 `ready_for_mixset = true`가 된다
+- `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS`를 모두 통과한 뒤 `render(..., lint_msg)`가 성공해야 `ready_for_mixset = true`가 된다
 
 구체 규칙은 아래와 같다.
 
@@ -475,9 +519,11 @@ Config 단계에서 저장이 불가능한 상태라면, 시스템은 아래 피
 - `First Beat`가 없으면 `PDJE Registration Apply` 실행 금지
 - `__SETTING_VAL__ASSET_CONFIG_REQUIRED_FIELDS` 중 하나라도 비어 있으면 return save 실행 금지
 - validation을 통과하지 못하면 `Return` 불가
+- validation 입력 조건을 통과해도 render가 실패하면 `Return` 불가
 - validation 실패 상태에서 `__SETTING_VAL__SHORTCUT_SAVE_CURRENT_CONTEXT`를 누르면 경고창 표시
 - validation 실패 상태에서 `Authoring Local Bezel`의 `SaveIcon`을 클릭하면 경고창 표시
 - validation 실패 상태에서는 subscene 내부의 `저장 불가 상태 UI`를 유지 표시
+- render 실패 상태에서는 `lint_msg`를 노출한 채 현재 화면에서 계속 수정 가능해야 한다
 - app-local draft는 있을 수 있지만, `PDJE Registration Apply` 이전 상태를 `PDJE` editor asset으로 취급하지 않는다
 
 즉, `local draft 저장은 허용하지만`, `PDJE registration`과 `mix-ready 복귀`는 더 강한 gate를 통과할 때만 허용한다.
@@ -496,6 +542,13 @@ Config 완료 후 상태에 따라 산출물이 갈린다.
 - `pdje_registered = false`
 - `ready_for_mixset = false`
 
+여기서 `asset_id`는 source file path와 별도의 authoring identity다.
+
+- 하나의 `asset_id`에는 정확히 하나의 music asset만 대응할 수 있다
+- 같은 source audio를 다시 불러오더라도 새로운 `asset_id`로 생성하면 별도 asset으로 본다
+- 같은 source audio라는 이유만으로 edit state를 공유하지 않는다
+- cache DB가 waveform 또는 RGB waveform에서 cache hit를 내더라도, 그것은 preview/cache 재사용일 뿐 authoring data 공유를 뜻하지 않는다
+
 ### Return Save Output
 
 - `asset_id`
@@ -507,11 +560,18 @@ Config 완료 후 상태에 따라 산출물이 갈린다.
 - `first_beat`
 - `user_tags`
 - `waveform_preview_ref?`
+
+위 규칙은 return-ready asset에도 동일하게 적용된다.  
+즉, 같은 audio source를 가리키더라도 `asset_id`가 다르면 다른 asset data다.
 - `pdje_registered = true`
 - `pdje_searchable_by_search_music = conditional`
-- `ready_for_mixset = true`
+- `ready_for_mixset = conditional (render success only)`
 
 `user_tags`는 현재 binding 기준으로 `PDJE` native music API가 아니라 app-layer metadata다.
+
+- 그래픽적 tag metadata의 소유자는 `asset_id`다
+- 같은 source audio라도 `asset_id`가 다르면 tag를 공유하지 않는다
+- tag는 source file path가 아니라 asset entry에 귀속된다
 
 `ready_for_mixset`가 참이 아닌 asset은 현재 project의 믹스 authoring에서 로드 대상으로 사용할 수 없다.  
 단, `__SETTING_VAL__ASSET_READY_FOR_MIXSET_IMPLIES_ROOT_DB_VISIBILITY = false`이므로 이것이 곧 root DB searchable 상태를 뜻하지는 않는다.
@@ -592,18 +652,22 @@ return save에 실패한 경우에는 아래를 수행해야 한다.
 - 무거운 분석 작업은 UI를 완전히 멈추게 하지 않는 방향이 좋다
 - waveform/STFT 결과가 있더라도 사용자가 수동 입력으로 최종 확정해야 한다
 - `PDJE` waveform build는 `PDJE search-visible` 상태 이후의 backgroundable state로 다루는 것이 좋다
-- autosave와 waveform build가 동시에 겹칠 경우, source of truth는 app-local draft state와 `PDJE` registration state를 구분해서 다뤄야 한다
+- autosave와 waveform build가 동시에 겹칠 경우에도 authoritative source는 `editor DB` / `RootDB` 저장 데이터이며, app-local draft는 보조 working copy로만 다뤄야 한다
 
-즉, 자동 분석은 보조 수단일 수 있지만, **authoritative metadata source는 항상 사용자 입력**이다.
+즉, 자동 분석은 보조 수단이고, 사용자 입력은 변경의 입력값일 뿐이다.  
+authoritative metadata source는 성공적으로 저장된 `editor DB` / `RootDB` 데이터다.
 
-## Open Questions
+## Failure Persistence Rule
 
-- BPM transition metadata의 정확한 row schema를 별도 문서로 분리할지 결정이 필요하다
-- 태그의 최소 필수 세트를 둘지 결정이 필요하다
-- `Composer` 외에 `Artist`를 별도 필수 필드로 둘지 결정이 필요하다
-- `PDJE_MIR`를 조기 사용하려면 별도 staging render/push 경로를 둘지 결정이 필요하다
-- waveform 실패 시 `return-ready` 편집을 얼마나 허용할지 결정이 필요하다
-- `ready_for_mixset`와 root DB visibility 사이의 후속 동기화 시점을 별도 문서로 닫을지 결정이 필요하다
+실패 상태는 persistence하지 않는다.
+
+- invalid source
+- invalid return
+- save failure
+- render failure
+- waveform generation failure
+
+이 상태들은 사용자가 바로 수정/재시도할 수 있도록 UI에만 남겨두되, canonical stored state로 승격하지 않는다.
 
 ## Summary
 

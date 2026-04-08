@@ -118,11 +118,38 @@ UI block은 이 semantic layer를 직접 저장하는 것이 아니라, **보다
 최소한 아래를 소유한다.
 
 - global timeline axis
+- global parameter lane
 - `TrackBlock` 집합
+- master output lane
 - global transport reference
 - global selection / edit context
 
 `Workspace`는 asset BPM 자체를 직접 저장하는 곳이 아니라, **asset-owned lane들이 놓이는 전체 시간축 컨테이너**다.
+
+## Lane Family Model
+
+현재 blueprint에서 workspace의 lane family는 아래 3가지로 고정한다.
+
+### 1. Global Parameter Lane
+
+- workspace 전체에 대해 사실상 1개만 둔다
+- 전역 파라미터 중에서도 BPM 관련 command만 다룬다
+- 현재 닫힌 범위에서 이 lane의 실질적 대상은 `BPM_CONTROL`뿐이다
+
+### 2. Track Lane
+
+- 음악 asset당 하나씩 존재하는 주 lane family다
+- 현재 문서의 `TrackBlock`이 바로 이 track lane instance다
+- 가장 많은 sub-lane 또는 내부 편집층을 가지는 family다
+- `MusicBlock`, waveform, segment, beat access, asset별 authoring 정보가 이 family 아래에 모인다
+
+### 3. Master Output Lane
+
+- 최종 출력 체인에 대해 사실상 1개만 둔다
+- authoring command를 직접 편집하는 lane이 아니다
+- preview playback 또는 render 이후의 최종 결과를 표시하는 display-only lane family로 본다
+
+즉, workspace는 `global parameter lane 1개 + track lane N개 + master output lane 1개` 구조를 기본으로 본다.
 
 ## TrackBlock
 
@@ -135,6 +162,7 @@ UI block은 이 semantic layer를 직접 저장하는 것이 아니라, **보다
 - lane 1개 = music asset 1개
 - y축 = asset identity
 - x축 = global timeline
+- workspace의 `Track Lane` family에 속하는 lane instance
 
 ## Ownership Rule
 
@@ -142,24 +170,31 @@ UI block은 이 semantic layer를 직접 저장하는 것이 아니라, **보다
 - 같은 asset을 여러 lane으로 복제하지 않는다
 - asset의 시간축 사용 방식은 해당 `TrackBlock` 내부의 `MusicBlock`과 재생/정지 영역으로 표현한다
 
+여기서 `same asset`은 source file path가 아니라 `asset identity` 기준이다.
+
+- 하나의 `asset_id`는 정확히 하나의 asset identity만 뜻한다
+- 같은 source audio를 다른 `asset_id`로 다시 등록하면, 그것은 이 문서에서 다른 asset이다
+- 따라서 다른 `asset_id`는 별도의 `TrackBlock`과 별도의 edit state를 가진다
+- waveform/RGB waveform cache가 hit되더라도, cache reuse는 시각/미리보기 데이터 재사용일 뿐 authoring state 공유를 뜻하지 않는다
+
 ## Responsibilities
 
 `TrackBlock`은 아래 책임을 가진다.
 
 - global time axis 위의 lane 제공
-- 해당 asset의 `MusicBlock` 소유
-- 해당 asset에 적용되는 `global_bpm_map` authoring surface 제공
+- 해당 asset의 `MusicBlock` 집합 소유
+- workspace-global BPM lane이 반영된 beat access 결과 위에서 asset 구간을 표현
 - lane-level visibility / mute / selection 같은 보조 상태 제공 가능
 
-## TrackBlock BPM Rule
+## Global BPM Lane Relation Rule
 
-`TrackBlock`은 user-facing tempo control의 주 진입점이다.
+`TrackBlock`은 workspace-global BPM lane의 영향을 받지만, 자체 BPM lane을 소유하지 않는다.
 
 핵심 규칙은 아래와 같다.
 
-- 사용자는 `TrackBlock`의 global BPM lane만 신경쓴다
+- user-facing tempo control은 workspace의 `global parameter lane`에서만 이뤄진다
 - 사용자는 음악 자체의 local BPM map을 믹스 authoring 중 다시 수정하지 않는다
-- `TrackBlock.global_bpm_map`은 해당 lane의 target BPM curve 역할을 한다
+- 모든 `TrackBlock`은 같은 workspace-global BPM step lane을 공유한다
 
 이 global BPM lane은 번역 시 `PDJE`의 `BPM_CONTROL` 계열 `MixArgs`로 내려간다.
 
@@ -171,8 +206,9 @@ UI block은 이 semantic layer를 직접 저장하는 것이 아니라, **보다
 
 현재 draft는 아래 가정을 둔다.
 
-- `TrackBlock`당 하나의 primary `MusicBlock`을 가진다
-- 같은 asset의 비연속 사용은 새로운 lane 복제가 아니라, 같은 `MusicBlock` 내부의 사용/정지/재개 영역으로 표현한다
+- 하나의 `TrackBlock`은 하나 이상의 `MusicBlock`을 가질 수 있다
+- 각 `MusicBlock`은 하나의 `LOAD -> UNLOAD` 사용 container다
+- 같은 `asset_id`의 비연속 사용은 pause/resume이 아니라, 같은 `TrackBlock` 안의 복수 `MusicBlock`으로 표현한다
 
 ## Responsibilities
 
@@ -223,7 +259,7 @@ UI block은 이 semantic layer를 직접 저장하는 것이 아니라, **보다
 - 일반 audible playback 중에는 `CanonicalSourceCursor`와 `EffectiveReadCursor`가 함께 전진한다
 - `PAUSE`가 들어오면 새로운 source audio 공급은 그 지점에서 끊긴다
 - 현재 draft에서는 `resume after pause`를 기본 시나리오로 두지 않는다
-- 이후 다시 source audio를 내보내려면 별도 playback-start semantic이 새 segment를 만들어야 한다
+- 이후 같은 asset을 다시 audible playback에 쓰려면 새로운 `LOAD -> UNLOAD` container, 즉 새로운 `MusicBlock`이 필요하다
 - battle-style modifier는 활성 구간 동안 `EffectiveReadCursor`만 임시로 바꿀 수 있다
 - battle-style modifier가 끝나면 `EffectiveReadCursor`는 "그 modifier가 없었다면 도달했을" `CanonicalSourceCursor` 위치로 돌아간다
 
@@ -249,6 +285,8 @@ UI block은 이 semantic layer를 직접 저장하는 것이 아니라, **보다
 - `TransportModifiedSegment`: `CUE`, `SCRATCH`, `SPIN`, `REV` 같은 명령으로 source cursor path나 공급 방식이 변형된 구간
 - `PitchModifiedSegment`: source cursor 진행은 유지하지만 출력 음정만 변형되는 구간
 
+`BufferedEffectSegment`는 `PAUSE` 이후에는 남을 수 있지만, `UNLOAD` 이후에는 더 이상 생존하지 않는다.
+
 `SupplyCutEmptySegment`와 `TailEmptySegment`는 **빈 블록**으로 표시한다.  
 `BufferedEffectSegment`, `TransportModifiedSegment`, `PitchModifiedSegment`는 빈 블록이 아니라, effect tail 또는 변형된 waveform projection으로 표시할 수 있다.
 
@@ -259,6 +297,7 @@ UI block은 이 semantic layer를 직접 저장하는 것이 아니라, **보다
 - `PAUSE` 시점부터 다음 explicit playback-start semantic 또는 `UNLOAD` 전까지는 기본적으로 empty block으로 표시한다
 - source audio content가 끝난 이후 `UNLOAD`까지 남는 구간도 empty block으로 유지한다
 - `BufferedEffectSegment`가 존재하면 empty block 위에 effect-tail 성격의 waveform/projection을 별도로 표시할 수 있다
+- `UNLOAD` 이후에는 남아 있던 feedback/effect tail도 종료된 것으로 본다
 
 즉, 사용자는 하나의 `MusicBlock` 안에서 `재생되는 부분`과 `비어 있는 부분`을 동시에 보게 된다.
 
@@ -525,6 +564,7 @@ speed 값을 쓰는 battle-style modifier의 공통 규칙은 아래와 같다.
 ### 3. Derived Global Beat Access Grid
 
 - global BPM lane과 local BPM metadata를 합성한 결과
+- 정확히는 workspace의 single global BPM lane과 local BPM metadata를 합성한 결과
 - `BarBlock` 경계가 실제로 놓이는 grid
 - EQ / FX / beat-unit edit가 접근하는 계산된 박자 단위
 
@@ -534,7 +574,8 @@ speed 값을 쓰는 battle-style modifier의 공통 규칙은 아래와 같다.
 
 - 사용자는 믹스 authoring 단계에서 global BPM 하나만 신경쓴다
 - local BPM 변화는 내부 동작을 위한 참조 데이터로 사용된다
-- 따라서 mix editor는 `TrackBlock.global_bpm_map`을 중심으로 설계한다
+- 따라서 mix editor는 workspace의 single global BPM lane을 중심으로 설계한다
+- 이 lane은 `BPM_CONTROL` point command만 받으며, 각 command는 그 시점 이후의 target BPM을 고정한다
 
 이 규칙의 목표는 아래와 같다.
 
@@ -558,7 +599,7 @@ music asset의 local BPM metadata는 아래 성격을 가진다.
 이 모델은 source BPM과 target BPM을 둘 다 참조하는 piecewise tempo mapping을 따른다.
 
 - source BPM: `music config`에서 확보한 local BPM map
-- target BPM: `TrackBlock.global_bpm_map`
+- target BPM: workspace-global BPM lane
 
 effective stretch는 구간별로 계산된다.
 
@@ -580,6 +621,16 @@ effective stretch는 구간별로 계산된다.
 
 이 규칙이 `BarBlock` 재계산과 stretch 해석의 핵심이다.
 
+## BPM Control Command Rule
+
+`Editor_Format` 기준에서 `BPM_CONTROL`은 `ITPL + 8PointValues` 계열이 아니라, `first` 인자에 target BPM 하나만 가지는 point command로 본다.
+
+- `BPM_CONTROL` row는 start position만 필요하다
+- `first`에는 target BPM 하나만 문자열로 직렬화해 넣는다
+- 이 command가 나타난 시점부터 lane의 effective target BPM은 해당 값으로 고정된다
+- 그 상태는 다음 `BPM_CONTROL` command가 나올 때까지 유지된다
+- 따라서 global BPM lane은 curve interpolation lane이 아니라 **step-hold BPM change lane**이다
+
 ## Editing Responsibility Split
 
 block별 편집 책임은 아래처럼 고정한다.
@@ -587,11 +638,11 @@ block별 편집 책임은 아래처럼 고정한다.
 ### Workspace Level
 
 - 전체 시간축 컨테이너
+- global BPM lane
 - 전체 selection context
 
 ### TrackBlock Level
 
-- global BPM lane
 - asset-owned lane identity
 - lane-level visibility
 
@@ -629,7 +680,7 @@ asset prep에서 확정된 local timing 정보는 아래 쪽으로 간다.
 
 mix authoring에서 만든 구조는 아래 쪽으로 간다.
 
-- `TrackBlock.global_bpm_map` -> `MixArgs(BPM_CONTROL)`
+- workspace-global BPM lane -> `MixArgs(BPM_CONTROL)`
 - `MusicBlock load/unload/play-state` -> `MixArgs(LOAD/UNLOAD/CONTROL)`
 - `BarBlock EQ/FX edits` -> `MixArgs(EQ/FILTER/VOL/FX 계열)`
 
@@ -639,11 +690,190 @@ mix authoring에서 만든 구조는 아래 쪽으로 간다.
 - 최종 `PDJE` 저장 의미는 event row 집합이다
 - 따라서 compile/translation 단계에서 deterministic ordering이 필요하다
 
+### MixArgs Lowering Contract
+
+현재 blueprint에서 mix row lowering은 `PDJE_EDITOR_ARG.InitMixArg(...)`가 받는 full arg shape를 기준으로 한다.
+
+- 모든 mix row는 기본적으로 `type`, `id`, `details`, `first`, `second`, `third`, `beat`, `subBeat`, `separate`, `Ebeat`, `EsubBeat`, `Eseparate` 전체 컬럼을 가진 full arg로 본다
+- lowering 단계는 row별로 필요한 컬럼만 채우고, 읽지 않는 컬럼은 wrapper/native default가 유지된 상태로 넘긴다
+- 즉, 어떤 row가 point command인지 span command인지에 따라 start tuple만 채우거나, start/end tuple을 함께 채우는 식으로 lowering한다
+- `first` / `second` / `third` 역시 row가 실제로 읽는 slot만 채우고, 나머지는 수정하지 않은 기본값으로 둔다
+
+따라서 blueprint에서의 핵심 문제는 "모든 row를 서로 다른 구조체로 만드는 것"이 아니라, **공통 full arg shape를 유지한 채 각 detail이 어떤 컬럼을 실제로 읽는지 고정하는 것**이다.
+
+### MixArgs Auxiliary Argument Categories
+
+`Editor_Format` 기준으로 `MixArgs.first/second/third`는 저장층에서는 모두 `TEXT`지만, blueprint에서는 아래 semantic category로 묶어 해석한다.
+
+#### 1. Numeric Scalar Text
+
+문자열로 직렬화되는 `double` / `float` 계열 값이다.
+
+- `bpm`
+- `feedback`
+- `middlefreq`
+- `rangehalffreq`
+- `gain`
+- `Strength`
+- `Thresh`
+- `Knee`
+- `ATT`
+- `REL`
+- `ocsFreq`
+- `speed`
+
+이 값들은 mix type에 따라 단일 scalar로 쓰이거나, comma-separated tuple의 구성 요소로 쓰일 수 있다.
+
+#### 2. PCM Frame Position Text
+
+문자열로 직렬화되는 `unsigned long long` 계열 위치값이다.
+
+- `approx_loc`
+- `StartPosition`
+
+blueprint 해석상 이 둘은 모두 음악 블록 내부 기준의 PCM frame 위치를 뜻한다.  
+채널 수는 따로 곱하지 않는 frame index이며, `48000 sample rate` 기준으로 `1초 = 48000`으로 본다.
+
+#### 3. Plain String Text
+
+문자열 자체를 의미 payload로 쓰는 값이다.
+
+- `title`
+- `composer`
+
+### `LOAD` Payload Ownership Rule
+
+`Editor_Format`의 `LOAD` row에서 쓰이는 `title`, `composer`, `bpm`은 user가 mixset timeline에서 자유 텍스트나 숫자로 직접 작성하는 필드로 두지 않는다.
+
+- 이 셋은 오직 `LOAD` 명령의 asset identity payload를 구성하기 위한 인자다
+- 사용자는 timeline에서 `LOAD`할 대상을 현재 editor에 등록된 music asset 중에서 선택한다
+- 시스템은 그 선택 결과를 기준으로 현재 등록된 music metadata를 질의해 `title`, `composer`, `bpm`을 자동 기입하거나 동기화한다
+- 따라서 `LOAD` row의 `title/composer/bpm`은 user-authored freeform payload가 아니라 **selected registered asset에서 파생되는 derived payload**로 본다
+
+여기서 `bpm`은 일반적인 scalar numeric automation 입력과 같은 성격으로 직접 편집하지 않는다.  
+즉, `LOAD`의 `bpm`은 검색/동일성 보조 payload이며, workspace-global BPM lane이나 FX 파라미터 입력과 다른 규칙을 따른다.
+
+### 8Point Automation Target Set
+
+공식 `Editor_Format`의 `Mix Data Table` 기준으로, 현재 blueprint에서 `ITPL + 8PointValues` 기반 span automation으로 취급하는 대상은 아래와 같다.
+
+- `FILTER`
+- `EQ`
+- `DISTORTION`
+- `VOL`
+- `ECHO`
+- `OSC_FILTER`
+- `FLANGER`
+- `PHASER`
+- `TRANCE`
+- `PANNER`
+- `ROLL`
+- `ROBOT`
+
+여기서 공식 표의 구 표기는 `OCS_Filter`지만, blueprint에서는 현재 소스명 기준의 `OSC_FILTER`로 통일해 적는다.
+
+반대로 아래 계열은 `8PointValues` 기반 automation target으로 보지 않는다.
+
+- `CONTROL`
+- `LOAD`
+- `UNLOAD`
+- `BPM_CONTROL`
+- `BATTLE_DJ`
+- `COMPRESSOR`
+
+### Interpolation Default Rule
+
+`8PointValues` 기반 automation의 기본 interpolation은 `ITPL_COSINE`으로 둔다.
+
+- user는 필요 시 다른 interpolation으로 바꿀 수 있다
+- `ITPL_FLAT`에서는 하나의 control value를 움직이면 다른 point도 함께 따라가도록 본다
+
+### Parameter Window Reuse Rule
+
+timeline에서 tag를 생성하거나 수정할 때는 최대 3개의 공통 파라미터 창을 재사용한다.
+
+- 각 창은 단순한 실수 입력 필드값을 받는 공통 dialog window다
+- 창 배치는 화면 하단 기준으로 `first`는 좌하, `second`는 중하, `third`는 우하이다
+- 파라미터가 없는 slot은 창을 띄우지 않는다
+- 비어 있는 slot이 있으면 남은 창이 그 영역까지 확장되어 더 넓게 보이도록 한다
+- `double` / `unsigned int` 성격의 값은 모두 같은 공통 numeric 입력 dialog를 재사용한다
+- 사용자가 입력한 값은 apply 직전에 `__SETTING_VAL__AUTOMATION_PARAM_SCALAR_COERCE_MODE` 규칙에 따라 그대로 유지하거나 `floor` 처리한다
+- apply 시점에는 정규화된 값을 자동으로 string으로 직렬화해 `first` / `second` / `third` payload에 넣는다
+- `title`, `composer`처럼 자유 문자열이지만 derived payload로 다뤄야 하는 값은 별도 freeform 입력 대상으로 두지 않는다
+
+PCM frame 위치를 의미하는 인자는 직접 타이핑보다 waveform 기반 picking을 우선한다.
+
+- `approx_loc`
+- `StartPosition`
+
+이 값들은 RGB waveform 위에서 사용자가 bar 위치를 찍으면 자동으로 기입되도록 한다.
+
+### Mix Target Parameter Schema
+
+아래 표는 공식 `Editor_Format`의 `Mix Data Table`을 기준으로, 현재 blueprint가 각 target의 `first` / `second` / `third`를 어떻게 해석하는지 고정한 것이다.  
+공식 표의 구 표기 `bpmControl`, `OCS_Filter`는 여기서 각각 `BPM_CONTROL`, `OSC_FILTER`로 읽는다.
+
+| Target | Command Shape | Start/End Usage | `first` | `second` | `third` | UI Input Rule |
+| --- | --- | --- | --- | --- | --- | --- |
+| `FILTER` | span automation | start + end | `ITPL_*` | `8PointValues` | none | 8point popup |
+| `EQ` | span automation | start + end | `ITPL_*` | `8PointValues` | none | 8point popup |
+| `DISTORTION` | span automation | start + end | `ITPL_*` | `8PointValues` | none | 8point popup |
+| `VOL` | span automation | start + end | `ITPL_*` | `8PointValues` | none | 8point popup |
+| `ECHO` | span automation | start + end | `ITPL_*` | `8PointValues` | `BPM, feedback` | 8point popup + scalar dialog |
+| `OSC_FILTER` | span automation | start + end | `ITPL_*` | `8PointValues` | `BPM, MiddleFreq, RangeHalfFreq` | 8point popup + scalar dialog |
+| `FLANGER` | span automation | start + end | `ITPL_*` | `8PointValues` | `BPM` | 8point popup + scalar dialog |
+| `PHASER` | span automation | start + end | `ITPL_*` | `8PointValues` | `BPM` | 8point popup + scalar dialog |
+| `TRANCE` | span automation | start + end | `ITPL_*` | `8PointValues` | `BPM, GAIN` | 8point popup + scalar dialog |
+| `PANNER` | span automation | start + end | `ITPL_*` | `8PointValues` | `BPM, GAIN` | 8point popup + scalar dialog |
+| `ROLL` | span automation | start + end | `ITPL_*` | `8PointValues` | `BPM` | 8point popup + scalar dialog |
+| `ROBOT` | span automation | start + end | `ITPL_*` | `8PointValues` | `ocsFreq` | 8point popup + scalar dialog |
+| `CONTROL.PAUSE` | point command | start only | `approx_loc` | none | none | waveform picking |
+| `CONTROL.CUE` | point command | start only | `approx_loc` | none | none | waveform picking |
+| `LOAD` | point command | start only | `title` | `composer` | `bpm` | registered asset lookup only |
+| `UNLOAD` | point command | start only | none | none | none | tag only |
+| `BPM_CONTROL` | point command | start only | target BPM | none | none | scalar dialog |
+| `BATTLE_DJ.SPIN` | point command | start only | `SPEED` | none | none | scalar dialog |
+| `BATTLE_DJ.PITCH` | point command | start only | `SPEED` | none | none | scalar dialog |
+| `BATTLE_DJ.REV` | point command | start only | `SPEED` | none | none | scalar dialog |
+| `BATTLE_DJ.SCRATCH` | point command | start only | `StartPosition` | `SPEED` | none | waveform picking + scalar dialog |
+| `COMPRESSOR` | point command | start only | `Strength` | `Thresh, Knee` | `ATT, REL` | scalar dialog |
+
+표의 `Command Shape`는 현재 blueprint 해석이다.  
+이는 공식 표의 payload column과 공식 시간 모델의 `start tuple only` / `start+end tuple` 구분을 결합해 도출한 것이다.
+
+### Special Payload Input Rules
+
+특수 계열도 lowering 구조 자체는 일반 `MixArgs`와 다르지 않다.  
+다만 `first` / `second` / `third` slot이 요구하는 payload shape에 따라 입력 UI가 달라진다.
+
+#### 1. PCM Frame Position Payload
+
+`first` / `second` / `third` 중 어떤 slot이든 PCM frame 위치를 요구하는 경우, 해당 slot은 일반 scalar dialog 대신 waveform-linked picker window로 처리한다.
+
+- 사용자는 RGB waveform 위의 bar 위치를 선택한다
+- 시스템은 그 위치를 음악 블록 내부 기준 PCM frame index로 환산한다
+- 환산된 값은 해당 slot payload에 자동 기입된다
+- 이 picker window는 기존 `first` / `second` / `third` 하단 파라미터 레이아웃과 호환되게 배치한다
+
+#### 2. Comma-Separated Numeric Tuple Payload
+
+쉼표로 구분된 numeric tuple을 요구하는 slot은 tuple arity에 맞는 전용 dialog를 사용한다.
+
+- `Thresh, Knee`처럼 2개 scalar를 요구하는 경우: 2-field float dialog
+- `ATT, REL`처럼 2개 scalar를 요구하는 경우: 2-field float dialog
+- `BPM, feedback`처럼 2개 scalar를 요구하는 경우: 2-field float dialog
+- `BPM, MiddleFreq, RangeHalfFreq`처럼 3개 scalar를 요구하는 경우: 3-field float dialog
+
+저장 시에는 각 field 값을 개별적으로 string 변환한 뒤, comma-separated text로 직렬화한다.
+
+- 예: `string(float),string(float)`
+- 3-field인 경우도 같은 방식으로 `string(float),string(float),string(float)`로 직렬화한다
+
 ## Validation Rules
 
 - `TrackBlock`은 `ready_for_mixset = true`인 asset에 대해서만 생성할 수 있다
 - 하나의 asset은 하나의 `TrackBlock`만 가진다
-- 각 `TrackBlock`은 하나의 global BPM lane만 가진다
+- workspace에는 BPM 전용 `global parameter lane`이 하나만 존재한다
 - local BPM metadata가 없으면 `BarBlock` 계산이 불완전해진다
 - waveform preview가 없어도 semantic validity를 자동으로 잃지는 않는다
 - `MusicBlock`의 재생/정지 영역은 번역 가능한 event set으로 환원 가능해야 한다
@@ -656,7 +886,7 @@ mix authoring에서 만든 구조는 아래 쪽으로 간다.
 
 - block id와 참조 관계
 - global 위치 정보
-- `TrackBlock.global_bpm_map`
+- workspace-global BPM lane data
 - `MusicBlock`의 사용 영역 / 재생 상태 영역
 - `MusicBlock` 내부 silent / empty segment 경계
 - `BarBlock` 편집 결과에서 파생된 semantic event
@@ -669,23 +899,26 @@ mix authoring에서 만든 구조는 아래 쪽으로 간다.
 - waveform bitmap 자체
 - UI hover / selection rectangle
 
-waveform은 cache 또는 preview asset으로 취급하는 편이 맞다.
+registered asset waveform은 cache asset으로 취급할 수 있지만, master preview waveform은 transient preview data로 보고 cache하지 않는다.
 
-## Open Questions
+## Discontinuous Use Rule
 
-- 같은 asset의 복수 비연속 사용을 현재 `MusicBlock` 내부 segmentation만으로 충분히 표현할지 결정이 필요하다
-- `BarBlock` 내부 EQ/FX 수정이 bar 전체 구간 단위인지, bar 내부 자유 offset도 허용하는지 정해야 한다
-- global BPM lane의 interpolation rule을 얼마나 세밀하게 허용할지 정해야 한다
+- 같은 `asset_id`는 여전히 하나의 `TrackBlock`만 가진다
+- 하지만 같은 `asset_id`의 비연속 audible use는 하나의 `MusicBlock` 내부 segmentation으로 보지 않는다
+- 비연속 audible use는 같은 `TrackBlock` 안의 복수 `MusicBlock`으로 표현한다
+- `PAUSE`는 block 내부 source supply cut일 뿐, 이후 resume semantics를 만들지 않는다
 
 ## Summary
 
 `Mixset Timeline Model`의 현재 draft는 아래 구조를 따른다.
 
 - `TrackBlock`은 음악 asset당 정확히 하나의 lane이다
-- 사용자는 global BPM lane만 직접 편집한다
+- 같은 `TrackBlock`은 복수 `MusicBlock`을 가질 수 있다
+- 사용자는 workspace-global BPM lane만 직접 편집한다
 - local BPM map은 hidden internal timing reference다
 - `MusicBlock`은 global timeline 위에서 asset의 사용과 재생 상태를 다루며, `LOAD-UNLOAD` 전체 길이를 가진다
 - `PAUSE` 이후에는 기본적으로 source 공급이 끊기며, audio 종료 이후 남는 구간과 함께 empty block으로 표시한다
+- 같은 asset을 나중에 다시 쓰려면 pause/resume이 아니라 새로운 `MusicBlock`을 만든다
 - `LOAD`, `UNLOAD`, `CUE`, `PAUSE`, `SCRATCH`, `SPIN`, `REV`, `ECHO` 같은 supply-affecting command는 RGB waveform 표시에도 반영된다
 - `BarBlock`은 local BPM map과 global BPM map으로부터 계산되는 derived beat access unit이다
 - 최종적으로 이 모델은 `PDJE Editor Format`의 `MusicArgs`와 `MixArgs` 집합으로 번역된다

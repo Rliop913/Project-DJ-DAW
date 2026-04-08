@@ -27,6 +27,7 @@
 - 좌측 상단 배치 규칙
 - 공통 액션과 공통 상태의 범위
 - `SaveIcon`과 `Return` 계열 액션의 위치
+- `RootPinAction`의 위치와 의미
 - `Mixset Editing`과 `Music Asset Add & Config` 모두에서 유지되는 최소 공통 구조
 
 ## Out Of Scope
@@ -38,7 +39,7 @@
 - timeline 내부 toolbar
 - metadata form 내부 button
 - subscene 전용 toolbar
-- render / push / analysis 같은 서브씬 의존 액션의 세부 규칙
+- render / push / analysis 같은 서브씬 의존 액션의 저수준 구현
 
 ## Core Principles
 
@@ -67,6 +68,7 @@
 - current subscene label
 - `ReturnAction`
 - `SaveIcon`
+- `RootPinAction`
 - `SaveStateIndicator`
 
 이보다 깊은 정보는 넣지 않는다.
@@ -92,8 +94,9 @@
 
 - `ReturnAction`
 - `SaveIcon`
+- `RootPinAction`
 
-즉, 씬 전환 성격의 `Return`과 씬 상태 기록 성격의 `Save`는 모두 **좌측 상단 bezel 영역**에 배치한다.
+즉, 씬 전환 성격의 `Return`, 씬 상태 기록 성격의 `Save`, root DB 고정 성격의 `RootPinAction`은 모두 **좌측 상단 bezel 영역**에 배치한다.
 
 ### Center Zone
 
@@ -132,6 +135,17 @@
 - 저장 불가 상태라면 `__SETTING_VAL__SAVE_GUARD_SHOW_DIALOG_ON_INVALID_SAVE` 규칙에 따라 경고 dialog를 띄운다
 
 저장 불가 상태의 상세 표시는 local bezel이 아니라, 해당 서브씬 내부 UI를 따른다.
+
+### RootPinAction
+
+`RootPinAction`은 현재 rendered state를 root DB에 고정하려는 공통 액션이다.
+
+일반 규칙은 아래와 같다.
+
+- `SaveIcon` 옆에 배치한다
+- 일반 save와 분리된 explicit push action이다
+- click 시 `pushToRootDB`를 시도한다
+- auto save를 대신하지 않는다
 
 ### SaveStateIndicator
 
@@ -191,7 +205,6 @@ center zone에는 현재 편집 중인 authoring target을 짧게 표시한다.
 
 - preview
 - render
-- push
 - re-run analysis
 - add music asset
 - event-specific command
@@ -216,17 +229,20 @@ center zone에는 현재 편집 중인 authoring target을 짧게 표시한다.
 
 - `ReturnAction` hover: 어디로 돌아가는지 설명
 - `SaveIcon` hover: 현재 저장 대상이 무엇인지 설명
+- `RootPinAction` hover: 현재 rendered state를 root DB에 고정하려는 액션임을 설명
 - `SaveStateIndicator` hover: 현재 저장 상태 설명
 
 ### Click
 
 - `ReturnAction` click: 기본 작업 공간으로 이동
 - `SaveIcon` click: 현재 context 저장 시도
+- `RootPinAction` click: 현재 rendered state의 root DB push 시도
 
 ### Blocked Action
 
 - 저장 불가 상태에서 `SaveIcon` click 시, 차단 사유는 현재 서브씬 내부 UI가 설명한다
 - 현재 위치가 이미 기본 작업 공간이면 `ReturnAction`은 무반응이 아니라 비활성 또는 숨김 처리
+- track editor를 `ESC`로 벗어날 때는 자동 `pushToRootDB`를 시도할 수 있다
 
 ## Scene Integration Contract
 
@@ -236,6 +252,7 @@ center zone에는 현재 편집 중인 authoring target을 짧게 표시한다.
 - current subscene name
 - save state
 - save availability
+- root pin availability
 - return target availability
 
 이 bezel은 이 정보만 구독해서 공통 strip을 유지한다.
@@ -245,14 +262,18 @@ center zone에는 현재 편집 중인 authoring target을 짧게 표시한다.
 `Authoring Local Bezel`은 `Global Frame UI`와 역할이 겹치면 안 된다.
 
 - global frame: alert, warning, background task, hover readout, global status
-- authoring local bezel: return, save, save state, 최소 공통 상태
+- authoring local bezel: return, save, root pin, save state, 최소 공통 상태
 
 즉, 경고 시스템과 작업 큐는 global frame에 두고, authoring local bezel은 최대한 가볍게 유지한다.
 
-## Open Questions
+## Visual Decision
 
-- `ReturnAction`을 icon만으로 둘지, icon + text로 둘지 결정이 필요하다
-- `SaveStateIndicator`를 icon만으로 둘지, 짧은 text badge를 함께 둘지 결정이 필요하다
+- `ReturnAction`은 `icon + short text`로 둔다
+- `SaveIcon`은 `icon + short text`로 둔다
+- `RootPinAction`은 `icon + short text`로 둔다
+- `SaveStateIndicator`는 `icon + short text badge`로 둔다
+
+세부 근거는 [Visual Theme And Graphic Style](Visual%20Theme%20And%20Graphic%20Style.md)를 따른다.
 
 ## Summary
 

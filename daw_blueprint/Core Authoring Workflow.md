@@ -104,11 +104,17 @@ PDJE 기준으로 이 단계는 `ConfigNewMusic`에 해당한다.
 
 사용자는 현재 저작 중인 믹스셋의 결과 단위를 정한다.
 
-제품 관점에서는 이를 `mixset project`로 다루지만, PDJE persistence 관점에서는 최종적으로 특정 `trackTitle`을 대상으로 render/push되는 authored track 결과물로 관리된다.
+제품 UI 관점에서는 현재 작업 단위를 `editor project`로 다루고, PDJE persistence 관점에서는 최종적으로 특정 `trackTitle`을 대상으로 render/push되는 authored track 결과물로 관리한다.
+
+즉, 이 둘은 같은 이름의 동의어가 아니다.
+
+- `editor project`: 사용자가 `Workspace Selection`에서 보고, 다시 열고, 수정하고, 폐기하는 현재 authoring 단위
+- `trackTitle`: render / push 대상이 되는 `RootDB` track 식별 단위
 
 이 단계에서 UI는 최소한 아래 상태를 관리해야 한다.
 
-- 현재 편집 중인 믹스셋 이름
+- 현재 편집 중인 editor project 이름
+- 현재 project가 대상으로 삼는 `trackTitle`
 - timeline의 기준 단위
 - 어떤 음악 자산들이 현재 project에서 사용 중인지
 
@@ -176,8 +182,9 @@ preview는 **authoring 결과를 audition하는 검증 단계**다.
 
 1. `render(trackTitle, ROOTDB, lint_msg)`
 2. lint 결과 확인
-3. `pushToRootDB(ROOTDB, trackTitle)`
-4. 필요한 경우 music metadata도 root DB에 반영
+3. 일반 save는 여기서 끝날 수 있다
+4. 사용자가 `RootPinAction`을 누르거나 editor를 벗어날 때 `pushToRootDB(ROOTDB, trackTitle)`를 시도한다
+5. 필요한 경우 music metadata도 root DB에 반영
 
 이 단계에서 중요한 구분은 아래와 같다.
 
@@ -263,19 +270,17 @@ PDJE가 직접 규정하는 것은 event/timeline authoring semantics이며, 아
 
 - live input capture를 automation으로 바로 기록하는 기능
 - waveform editing 자체를 중심에 둔 clip manipulation
-- loop authoring의 상세 규칙
+- CUE 기반 loop-like GUI 편의 기능의 상세 규칙
 - 실시간 DJ hardware integration
 - note/chart authoring flow
 
 필요하면 이들은 후속 문서에서 별도로 정의한다.
 
-## Open Questions
+## Loop Interpretation
 
-- `mixset project`와 `trackTitle`의 UI 용어를 완전히 동일시할지, 사용자 친화적 별도 개념층을 둘지 결정이 필요하다
-- `LOAD/UNLOAD`를 GUI에서 clip-like object로 보이게 할지, event block으로 보이게 할지 결정이 필요하다
-- BPM timeline과 mix automation lane의 우선 표현 방식을 어떻게 분리할지 결정이 필요하다
-- preview 중 허용되는 편집 범위를 어디까지 둘지 정의가 필요하다
-- loop 기능을 PDJE 확장으로 볼지, GUI abstraction으로 먼저 도입할지 검토가 필요하다
+- loop는 새로운 `PDJE` command family나 engine extension으로 보지 않는다
+- loop는 기존 `CUE` command를 반복적으로 이용해 특정 구간을 되감아 재진입하는 GUI 응용계층 convenience로 본다
+- 따라서 loop authoring은 저장 의미론을 새로 확장하기보다, existing `PDJE` mix semantics 위의 editor-side abstraction으로 다룬다
 
 ## Summary
 
