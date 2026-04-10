@@ -1,0 +1,66 @@
+[gd_scene format=3 uid="uid://b42l21quygo5x"]
+
+[ext_resource type="Script" uid="uid://wkutj7d32o55" path="res://Modules/ProjectSelector/rt_list.gd" id="1_3ou6w"]
+[ext_resource type="Script" uid="uid://62lv1bmd4buj" path="res://Modules/ProjectSelector/ed_list.gd" id="2_rmmq6"]
+
+[node name="ui_root" type="Control" unique_id=453383323]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="background" type="Panel" parent="." unique_id=624433357]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="main_split" type="HBoxContainer" parent="." unique_id=247825678]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Split" type="HSplitContainer" parent="main_split" unique_id=1383868342]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RT_list" type="Tree" parent="main_split/Split" unique_id=465355437]
+layout_mode = 2
+size_flags_horizontal = 3
+columns = 2
+hide_root = true
+select_mode = 1
+script = ExtResource("1_3ou6w")
+
+[node name="ED_list" type="Tree" parent="main_split/Split" unique_id=553341863]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 3.36
+columns = 6
+column_titles_visible = true
+hide_root = true
+select_mode = 1
+script = ExtResource("2_rmmq6")
+
+[node name="Edit_more" type="PopupMenu" parent="." unique_id=681748642]
+unique_name_in_owner = true
+oversampling_override = 1.0
+size = Vector2i(124, 100)
+visible = true
+item_count = 2
+item_0/text = "Delete"
+item_0/id = 0
+item_1/text = "Config Edit"
+item_1/id = 1
+
+[connection signal="button_clicked" from="main_split/Split/ED_list" to="main_split/Split/ED_list" method="_on_button_clicked"]
